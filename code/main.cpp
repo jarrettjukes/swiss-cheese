@@ -148,7 +148,7 @@ int main(int argC, char **args)
             WIN32_FILE_ATTRIBUTE_DATA fileAttributes = {};
             GetFileAttributesExA(fileName, GetFileExInfoStandard, &fileAttributes);
             b32 inputFileChanged = CompareFileTime(&fileAttributes.ftLastWriteTime, &lastWriteTime) > 0;
-            if(inputFileChanged || always)
+            if(inputFileChanged || always || !file.contents)
             {
                 if(file.contents)
                 {

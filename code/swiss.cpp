@@ -561,6 +561,11 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
         '*'
     };
     
+    char *specialSelectors[2] = {
+        "@media",
+        "@charset",
+    };
+    
     for(char *charData = (char *)file.contents; *charData && !error; ++charData)
     {
         column++;
@@ -638,6 +643,41 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
             int openBracketIndex = IndexOf(charData, '{');
             if((openBracketIndex <= IndexOf(charData, ':') && openBracketIndex >= 0) || Contains(appenders, *charData))
             {
+                b32 hasMediaQuery = false;
+                b32 leaveThisPlace = false;
+                for(int specialIndex = 0; specialIndex < ArrayCount(specialSelectors); ++specialIndex)
+                {
+                    char *specialSelector = specialSelectors[specialIndex];
+                    int len = StringLength(specialSelector);
+                    
+                    if(StringExactMatch(charData, len, specialSelector, len))
+                    {
+                        if(StringExactMatch("@media", len, specialSelector, len))
+                        {
+                            hasMediaQuery = true;
+                            break;
+                        }
+                        else if(StringExactMatch("@charset", len, specialSelector, len))
+                        {
+                            if(state->encoding)
+                            {
+                                //int ababab = 0;
+                                //todo(jarrett): throw an error
+                                __debugbreak();
+                            }
+                            charData += IndexOf(charData, '\"') + 1;
+                            
+                            state->encodingLen = IndexOf(charData, '\"');
+                            state->encoding = PushArray(&state->workingMem, char, state->encodingLen + 1);
+                            WriteString(charData, state->encodingLen, state->encoding);
+                            
+                            charData += IndexOf(charData, ';') + 1;
+                            leaveThisPlace = true;
+                            break;
+                        }
+                    }
+                }
+                if(leaveThisPlace) continue;
                 if(!workingBlock)
                 {
                     workingBlock = NewBlock(state, state->blocks, &state->blockCount, 0);
@@ -645,6 +685,11 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                 else
                 {
                     workingBlock = NewBlock(state, workingBlock->children, &workingBlock->childCount, workingBlock);
+                }
+                
+                if(hasMediaQuery)
+                {
+                    SetFlag(workingBlock, Block_wrapper);
                 }
                 
                 if(StringContains(appenders, StringLength(appenders), charData, openBracketIndex)) //entire string
@@ -667,12 +712,6 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                     }
                 }
                 
-                int mediaLen = StringLength("@media");
-                b32 hasMediaQuery = StringExactMatch(charData, mediaLen, "@media", mediaLen);
-                if(hasMediaQuery)
-                {
-                    SetFlag(workingBlock, Block_wrapper);
-                }
                 
                 int combinatorCount = ArrayCount(combinators);
                 b32 hasCombination = StringContains(combinators, combinatorCount, charData, openBracketIndex);
@@ -791,6 +830,15 @@ void ProcessData(app_platform *platform, file_contents file, error_details *erro
         out.data = PushArray(&state->workingMem, char, (u32)(1.5f * file.size));
         out.dataLen = 0;
         out.flags |= Output_NewLine;
+        
+        if(state->encoding)
+        {
+            AppendString("@charset \"", 10, &out);
+            
+            AppendString(state->encoding, state->encodingLen, &out);
+            
+            AppendString("\";\n\n", 4, &out);
+        }
         
         if(state->variableCount)
         {

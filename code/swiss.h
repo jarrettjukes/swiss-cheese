@@ -99,6 +99,9 @@ struct app_state
 {
     mem_struct workingMem;
     
+    char *encoding;
+    int encodingLen;
+    
     function userDefinedFunctions[16];
     u32 functionCount;
     
