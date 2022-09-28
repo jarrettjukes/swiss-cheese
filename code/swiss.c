@@ -232,19 +232,19 @@ internal void OutCode(app_state *state, selector_block *block, output *out)
                 varBlock = varBlock->parent;
             } while(findVariable && varBlock);
             
-            char *str = 0;
+            char *keyVal = 0;
             if(varKey)
             {
-                str = varKey->name;
+                keyVal = varKey->name;
             }
             else
             {
-                str = line->value;
+                keyVal = line->value;
             }
             
             AppendString("var(--", 6, (out->data + out->dataLen), &out->dataLen);
             
-            AppendString(str + 1, StringLength(str) - 1, (out->data + out->dataLen), &out->dataLen);
+            AppendString(keyVal + 1, StringLength(keyVal) - 1, (out->data + out->dataLen), &out->dataLen);
             
             AppendString(")", 1, (out->data + out->dataLen), &out->dataLen);
         }
@@ -483,13 +483,19 @@ internal void OutBlock(app_state *state, selector_block *block, output *out)
                     
                     if(!IsWhiteSpace(parentName->combinationChar) && parentName->combinationChar)
                     {
-                        if(!IsFlagSet(block->flags, Block_append)) *(out->data + out->dataLen++) = ' ';
+                        if(!IsFlagSet(block->flags, Block_append)) 
+                        {
+                            *(out->data + out->dataLen++) = ' ';
+                        }
                         OutNames(block, out);
                         *(out->data + out->dataLen++) = parentName->combinationChar;
                         *(out->data + out->dataLen++) = ' ';
                     }
                     
-                    if(nextParent->nameCount && !IsFlagSet(nextParent->flags, Block_append)) *(out->data + out->dataLen++) = ' ';
+                    if(nextParent->nameCount && !IsFlagSet(nextParent->flags, Block_append)) 
+                    {
+                        *(out->data + out->dataLen++) = ' ';
+                    }
                 }
             }
             
