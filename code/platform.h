@@ -171,4 +171,16 @@ internal void WriteString(char *src, int srcLen, char *dest)
     *(dest + srcLen) = '\0';
 }
 
+
+inline void *memset(void *ptr, int bytes, size_t size)
+{
+    char *data = (char *)ptr;
+    for(char byteIndex = 0; byteIndex < size; ++byteIndex)
+    {
+        *data++ = (char)bytes;
+    }
+    
+    return ptr;
+}
+
 #endif //PLATFORM_H
