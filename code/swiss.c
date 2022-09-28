@@ -186,15 +186,6 @@ internal void OutVariables(key_value_pair *variables, u32 variableCount, output 
     }
 }
 
-internal void OutVariableAccess(key_value_pair *line, char *out, int *outLen, int offset)
-{
-    AppendString("vars(--", 7, (out + *outLen), outLen);
-    
-    AppendString(line->name + offset, line->nameLength - offset, (out + *outLen), outLen);
-    
-    AppendString(")", 1, (out + *outLen), outLen);
-}
-
 internal void OutCode(app_state *state, selector_block *block, output *out)
 {
     AppendStringOutput("{\n", 2, out);
@@ -222,7 +213,7 @@ internal void OutCode(app_state *state, selector_block *block, output *out)
             b32 findVariable = true;
             selector_block *varBlock = block;
             key_value_pair *varKey = 0;
-            while(findVariable)
+            do
             {
                 for(u32 keyIndex = 0; keyIndex < varBlock->keyCount; ++keyIndex)
                 {
@@ -238,28 +229,24 @@ internal void OutCode(app_state *state, selector_block *block, output *out)
                     }
                 }
                 
-                if(!varBlock->parent) break;
                 varBlock = varBlock->parent;
-            }
+            } while(findVariable && varBlock);
             
-            if(findVariable)
+            char *str = 0;
+            if(varKey)
             {
-                for(u32 keyIndex = 0; keyIndex < state->variableCount; ++keyIndex)
-                {
-                    key_value_pair *key = state->variables + keyIndex;
-                    if(!IsFlagSet(key->flags, KVP_Variable)) continue;
-                    
-                    b32 stringMatch = StringExactMatch(line->value, line->valueLength, key->name, key->nameLength);
-                    if(stringMatch)
-                    {
-                        varKey = key;
-                        break;
-                    }
-                }
-                //grab from state
+                str = varKey->name;
+            }
+            else
+            {
+                str = line->value;
             }
             
-            OutVariableAccess(varKey, out->data, &out->dataLen, varStartIndex + 1);
+            AppendString("var(--", 6, (out->data + out->dataLen), &out->dataLen);
+            
+            AppendString(str + 1, StringLength(str) - 1, (out->data + out->dataLen), &out->dataLen);
+            
+            AppendString(")", 1, (out->data + out->dataLen), &out->dataLen);
         }
         else
         {
