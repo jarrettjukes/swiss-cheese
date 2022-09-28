@@ -632,7 +632,8 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
         else if (isSelector)
         {
             int openBracketIndex = IndexOf(charData, '{');
-            if((openBracketIndex <= IndexOf(charData, ':') && openBracketIndex >= 0) || Contains(appenders, *charData))
+            int valueSeparator = IndexOf(charData, ':');
+            if((openBracketIndex <= valueSeparator && openBracketIndex >= 0) || Contains(appenders, *charData) || *charData == '@')
             {
                 b32 hasMediaQuery = false;
                 b32 leaveThisPlace = false;
@@ -643,6 +644,8 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                     
                     if(StringExactMatch(charData, len, specialSelector, len))
                     {
+                        int eol = IndexOf(charData, ';');
+                        
                         if(StringExactMatch("@media", len, specialSelector, len))
                         {
                             hasMediaQuery = true;
@@ -662,7 +665,7 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                             state->encoding = PushArray(&state->workingMem, char, state->encodingLen + 1);
                             WriteString(charData, state->encodingLen, state->encoding);
                             
-                            charData += IndexOf(charData, ';') + 1;
+                            charData += eol + 1;
                             leaveThisPlace = true;
                             break;
                         }
@@ -670,7 +673,6 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                         {
                             //todo(jarrett): import can use media query text
                             charData += IndexOf(charData, ' ') + 1;
-                            int eol = IndexOf(charData, ';');
                         }
                     }
                 }
@@ -708,7 +710,6 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                         }
                     }
                 }
-                
                 
                 int combinatorCount = ArrayCount(combinators);
                 b32 hasCombination = StringContains(combinators, combinatorCount, charData, openBracketIndex);
