@@ -826,7 +826,7 @@ void ProcessData(app_platform *platform, file_contents file, error_details *erro
         AppendString(outFileExt, extensionLen, outFileName + fileExtIndex, 0);
         
         //out?
-        output out;
+        output out = {0};
         out.data = PushArray(&state->workingMem, char, (u32)(1.5f * file.size));
         out.dataLen = 0;
         out.flags |= Output_NewLine;
