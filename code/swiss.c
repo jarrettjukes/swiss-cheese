@@ -404,7 +404,7 @@ internal void OutBlock(app_state *state, selector_block *block, output *out)
         }
         //AppendString("\n", 1, out->data + (*out->dataLen), out->dataLen);
         OutWrapper(name, variables, variableCount, out);
-        AppendString("\n", 1, out->data + out->dataLen, &out->dataLen);
+        AppendStringOutput("\n", 1, out);
     }
     b32 hasLines = false;
     
