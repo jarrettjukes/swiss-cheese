@@ -5,7 +5,7 @@
 
 #include "stdint.h"
 #include "stdio.h"
-#include "string.h"
+//#include "string.h"
 
 #define Assert(expr) if(!(expr)) { *(int *)0 = 1;}
 
