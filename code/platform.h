@@ -32,17 +32,17 @@ typedef size_t mem_index;
 #define true 1
 #define false 0
 
-typedef struct mem_struct
+typedef struct memory_arena
 {
     mem_index size;
     u8 *base;
     mem_index used;
-} mem_struct;
+} memory_arena;
 
 #define PushStruct(memStruct, type) (type *)PushStruct_(memStruct, sizeof(type))
 #define PushArray(memStruct, type, size) (type *)PushStruct_(memStruct, sizeof(type) * size)
 
-inline void *PushStruct_(mem_struct *mem, mem_index size)
+inline void *PushStruct_(memory_arena *mem, mem_index size)
 {
     Assert((mem->used + size) <= mem->size);
     void *result = mem->base + mem->used;
@@ -51,7 +51,7 @@ inline void *PushStruct_(mem_struct *mem, mem_index size)
 }
 
 #define PopArray(memStruct, charP, type, size) PopStruct_(memStruct, charP, sizeof(type) * size)
-internal void PopStruct_(mem_struct *mem, void *p, size_t size)
+internal void PopStruct_(memory_arena *mem, void *p, size_t size)
 {
     //Assert(size);
     char *a = (char *)p;
@@ -172,15 +172,15 @@ internal void WriteString(char *src, int srcLen, char *dest)
 }
 
 
-inline void *memset(void *ptr, int bytes, size_t size)
+inline void *memset(void *pointer, int bytes, size_t size)
 {
-    char *data = (char *)ptr;
+    char *data = (char *)pointer;
     for(char byteIndex = 0; byteIndex < size; ++byteIndex)
     {
         *data++ = (char)bytes;
     }
     
-    return ptr;
+    return pointer;
 }
 
 #endif //PLATFORM_H

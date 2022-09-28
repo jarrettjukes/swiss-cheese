@@ -135,7 +135,7 @@ inline member_name *NewName(app_state *state, selector_block *block, int len)
 {
     member_name *result = block->names + block->nameCount++;
     result->len = len;
-    result->name = PushArray(&state->workingMem, char, result->len + 1);
+    result->name = PushArray(&state->arena, char, result->len + 1);
     
     return result;
 }
@@ -146,13 +146,13 @@ internal selector_block *NewBlock(app_state *state, selector_block *blocks, u32 
     state->totalBlockCount++;
     memset(block, 0, sizeof(selector_block));
     
-    block->names = PushArray(&state->workingMem, member_name, 16);
-    //block->lines = PushArray(&state->workingMem, key_value_pair, 64);
-    //block->variables = PushArray(&state->workingMem, key_value_pair, 64);
+    block->names = PushArray(&state->arena, member_name, 16);
+    //block->lines = PushArray(&state->arena, key_value_pair, 64);
+    //block->variables = PushArray(&state->arena, key_value_pair, 64);
     
-    block->keys = PushArray(&state->workingMem, key_value_pair, 128);
+    block->keys = PushArray(&state->arena, key_value_pair, 128);
     
-    block->children = PushArray(&state->workingMem, selector_block, MAX_BLOCK_CHILD_COUNT);
+    block->children = PushArray(&state->arena, selector_block, MAX_BLOCK_CHILD_COUNT);
     if(parent)
     {
         block->parent = parent;
@@ -288,7 +288,7 @@ internal void GetCode(app_state *state, char *c, key_value_pair *lines, u32 *lin
     key_value_pair *code = (lines + (*lineCount)++);
     int sep = IndexOf(c, ':');
     code->nameLength = sep;
-    code->name = PushArray(&state->workingMem, char, code->nameLength + 1);
+    code->name = PushArray(&state->arena, char, code->nameLength + 1);
     
     WriteString(c, code->nameLength, code->name);
     c += code->nameLength + 1;
@@ -299,7 +299,7 @@ internal void GetCode(app_state *state, char *c, key_value_pair *lines, u32 *lin
     }
     
     code->valueLength = IndexOf(c, ';');
-    code->value = PushArray(&state->workingMem, char, code->valueLength + 1);
+    code->value = PushArray(&state->arena, char, code->valueLength + 1);
     for(int i = 0; i < code->valueLength; ++i)
     {
         if(*c == '"')
@@ -446,7 +446,7 @@ internal void OutBlock(app_state *state, selector_block *block, output *out)
         
         if(parentCount)
         {
-            selector_block *parentList = PushArray(&state->workingMem, selector_block, parentCount);
+            selector_block *parentList = PushArray(&state->arena, selector_block, parentCount);
             {
                 selector_block *blockParent = block->parent;
                 
@@ -499,7 +499,7 @@ internal void OutBlock(app_state *state, selector_block *block, output *out)
                 }
             }
             
-            PopArray(&state->workingMem, parentList, selector_block, parentCount);
+            PopArray(&state->arena, parentList, selector_block, parentCount);
             
             if(!IsFlagSet(block->flags, Block_append))
             {
@@ -664,7 +664,7 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                             charData += IndexOf(charData, '\"') + 1;
                             
                             state->encodingLen = IndexOf(charData, '\"');
-                            state->encoding = PushArray(&state->workingMem, char, state->encodingLen + 1);
+                            state->encoding = PushArray(&state->arena, char, state->encodingLen + 1);
                             WriteString(charData, state->encodingLen, state->encoding);
                             
                             charData += eol + 1;
@@ -781,7 +781,7 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
     }
 }
 
-void InitMem(mem_struct *mem, memory_pool *pool, mem_index size)
+void InitMem(memory_arena *mem, memory_pool *pool, mem_index size)
 {
     mem->size = pool->memorySize - size;
     mem->used += size;
@@ -794,13 +794,13 @@ void ProcessData(app_platform *platform, file_contents file, error_details *erro
     
     if(!state->isInitialized)
     {
-        InitMem(&state->workingMem, &platform->permanentMemoryPool, sizeof(app_state));
+        InitMem(&state->arena, &platform->permanentMemoryPool, sizeof(app_state));
         
-        //state->blocks = PushArray(&state->workingMem, selector_block, 256);
+        //state->blocks = PushArray(&state->arena, selector_block, 256);
         
-        state->variables = PushArray(&state->workingMem, key_value_pair, 256);
+        state->variables = PushArray(&state->arena, key_value_pair, 256);
         
-        state->commentData = PushArray(&state->workingMem, char, 256);
+        state->commentData = PushArray(&state->arena, char, 256);
         state->commentDataLen = 256;
         
         state->isInitialized = true;
@@ -820,14 +820,14 @@ void ProcessData(app_platform *platform, file_contents file, error_details *erro
         }
         char *outFileExt = ".css";
         u32 extensionLen = StringLength(outFileExt);
-        char *outFileName = PushArray(&state->workingMem, char, (u32)fileExtIndex + extensionLen + 1);
+        char *outFileName = PushArray(&state->arena, char, (u32)fileExtIndex + extensionLen + 1);
         WriteString(file.fileName, fileExtIndex, outFileName);
         
         AppendString(outFileExt, extensionLen, outFileName + fileExtIndex, 0);
         
         //out?
         output out = {0};
-        out.data = PushArray(&state->workingMem, char, (u32)(1.5f * file.size));
+        out.data = PushArray(&state->arena, char, (u32)(1.5f * file.size));
         out.dataLen = 0;
         out.flags |= Output_NewLine;
         

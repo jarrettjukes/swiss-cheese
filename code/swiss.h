@@ -98,7 +98,7 @@ typedef struct selector_block
 
 typedef struct app_state
 {
-    mem_struct workingMem;
+    memory_arena arena;
     
     char *encoding;
     int encodingLen;
