@@ -29,17 +29,20 @@ typedef uint8_t u8;
 typedef u32 b32;
 typedef size_t mem_index;
 
-struct mem_struct
+#define true 1
+#define false 0
+
+typedef struct mem_struct
 {
     mem_index size;
     u8 *base;
     mem_index used;
-};
+} mem_struct;
 
 #define PushStruct(memStruct, type) (type *)PushStruct_(memStruct, sizeof(type))
 #define PushArray(memStruct, type, size) (type *)PushStruct_(memStruct, sizeof(type) * size)
 
-inline void *PushStruct_(mem_struct *mem, size_t size)
+inline void *PushStruct_(mem_struct *mem, mem_index size)
 {
     Assert((mem->used + size) <= mem->size);
     void *result = mem->base + mem->used;
@@ -82,7 +85,7 @@ internal int IndexOf(char *str, char c)
     return result;
 }
 
-internal void AppendString(char *src, int srcLen, char *dest, int *destLen = 0)
+internal void AppendString(char *src, int srcLen, char *dest, int *destLen)
 {
     Assert(src && srcLen && dest);
     
@@ -119,11 +122,11 @@ internal b32 Contains(char *table, char target)
     return false;
 }
 
-struct error_details
+typedef struct error_details
 {
     u32 code;//?
     char description[1024];
-};
+} error_details;
 
 internal b32 StringContains(char *a, int aLen, char *b, int bLen)
 {

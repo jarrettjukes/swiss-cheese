@@ -1,7 +1,7 @@
 #include "main.h"
 #include "swiss.h"
 
-inline void AppendString(char *src, int srcLen, output *out)
+inline void AppendStringOutput(char *src, int srcLen, output *out)
 {
     AppendString(src, srcLen, (out->data + out->dataLen), &out->dataLen);
 }
@@ -140,11 +140,11 @@ inline member_name *NewName(app_state *state, selector_block *block, int len)
     return result;
 }
 
-internal selector_block *NewBlock(app_state *state, selector_block *blocks, u32 *blockCount, selector_block *parent = 0)
+internal selector_block *NewBlock(app_state *state, selector_block *blocks, u32 *blockCount, selector_block *parent)
 {
-    selector_block *block = blocks + (*blockCount)++;
+    selector_block *block = (blocks + (*blockCount)++);
     state->totalBlockCount++;
-    *block = {};
+    memset(block, 0, sizeof(selector_block));
     
     block->names = PushArray(&state->workingMem, member_name, 16);
     //block->lines = PushArray(&state->workingMem, key_value_pair, 64);
@@ -171,18 +171,18 @@ internal void OutVariables(key_value_pair *variables, u32 variableCount, output 
         if(IsFlagSet(variable->flags, KVP_VariableNoReplace)) continue;
         if(IsFlagSet(out->flags, Output_Indent))
         {
-            AppendString("\t", 1, out);
+            AppendStringOutput("\t", 1, out);
         }
         
-        AppendString("\t--", 3, out);
+        AppendStringOutput("\t--", 3, out);
         
-        AppendString(variable->name + 1, variable->nameLength - 1, out);
+        AppendStringOutput(variable->name + 1, variable->nameLength - 1, out);
         
-        AppendString(": ", 2, out);
+        AppendStringOutput(": ", 2, out);
         
-        AppendString(variable->value, variable->valueLength, out);
+        AppendStringOutput(variable->value, variable->valueLength, out);
         
-        AppendString(";\n", 2, out);
+        AppendStringOutput(";\n", 2, out);
     }
 }
 
@@ -197,7 +197,7 @@ internal void OutVariableAccess(key_value_pair *line, char *out, int *outLen, in
 
 internal void OutCode(app_state *state, selector_block *block, output *out)
 {
-    AppendString("{\n", 2, out);
+    AppendStringOutput("{\n", 2, out);
     
     OutVariables(block->keys, block->keyCount, out);
     
@@ -207,14 +207,14 @@ internal void OutCode(app_state *state, selector_block *block, output *out)
         if(!IsFlagSet(line->flags, KVP_Line)) continue;
         if(IsFlagSet(out->flags, Output_Indent))
         {
-            AppendString("\t", 1, out);
+            AppendStringOutput("\t", 1, out);
         }
         
-        AppendString("\t", 1, out);
+        AppendStringOutput("\t", 1, out);
         
-        AppendString(line->name, line->nameLength, out);
+        AppendStringOutput(line->name, line->nameLength, out);
         
-        AppendString(": ", 2, out);
+        AppendStringOutput(": ", 2, out);
         
         int varStartIndex = IndexOf(line->value, '$');
         if(varStartIndex >= 0)
@@ -263,22 +263,22 @@ internal void OutCode(app_state *state, selector_block *block, output *out)
         }
         else
         {
-            AppendString(line->value, line->valueLength, out);
+            AppendStringOutput(line->value, line->valueLength, out);
         }
         
-        AppendString(";\n", 2, out);
+        AppendStringOutput(";\n", 2, out);
     }
     
     //for(int pad = 0; pad < paddingLen; ++pad)
     if(IsFlagSet(out->flags,  Output_Indent))
     {
-        AppendString("\t", 1, out);
+        AppendStringOutput("\t", 1, out);
     }
     
-    AppendString("}\n", 2, out);
+    AppendStringOutput("}\n", 2, out);
     if(IsFlagSet(out->flags, Output_NewLine)) 
     {
-        AppendString("\n", 1, out);
+        AppendStringOutput("\n", 1, out);
     }
 }
 
@@ -343,7 +343,7 @@ internal void OutWrapper(member_name *name, key_value_pair *variables, int varia
     int varChar = IndexOf(name->name, '$');
     
     int nameLen = varChar > 0 ? varChar : name->len;
-    AppendString(name->name, nameLen, out);
+    AppendStringOutput(name->name, nameLen, out);
     
     if(varChar > 0)
     {
@@ -355,12 +355,12 @@ internal void OutWrapper(member_name *name, key_value_pair *variables, int varia
             
             if(stringMatch)
             {
-                AppendString(variable->value, variable->valueLength, out);
+                AppendStringOutput(variable->value, variable->valueLength, out);
             }
         }
     }
     
-    AppendString(" {", 2, out);
+    AppendStringOutput(" {", 2, out);
     
     out->flags |= Output_Indent;
 }
@@ -370,7 +370,7 @@ internal void OutNames(selector_block *block, output *out)
     for(int nameIndex = 0; nameIndex < block->nameCount; ++nameIndex)
     {
         member_name *name = block->names + nameIndex;
-        AppendString(name->name, name->len, out);
+        AppendStringOutput(name->name, name->len, out);
         
         if(!IsWhiteSpace(name->combinationChar) && name->combinationChar)
         {
@@ -436,7 +436,7 @@ internal void OutBlock(app_state *state, selector_block *block, output *out)
         //AppendString("\n", 1, out->data + (*out->dataLen), out->dataLen);
         if(IsFlagSet(block->flags, Block_prepend))
         {
-            AppendString(name->name, name->len, out);
+            AppendStringOutput(name->name, name->len, out);
             
             *(out->data + out->dataLen++) = ' ';
         }
@@ -492,7 +492,7 @@ internal void OutBlock(app_state *state, selector_block *block, output *out)
                 {
                     member_name *parentName = parent->names + parentNameIndex;
                     
-                    AppendString(parentName->name, parentName->len, out);
+                    AppendStringOutput(parentName->name, parentName->len, out);
                     
                     if(!IsWhiteSpace(parentName->combinationChar) && parentName->combinationChar)
                     {
@@ -538,7 +538,7 @@ internal void OutBlock(app_state *state, selector_block *block, output *out)
             out->dataLen--;
             out->flags &= ~Output_NewLine;
         }
-        AppendString("}\n", 2, out);
+        AppendStringOutput("}\n", 2, out);
         out->flags &= ~Output_Indent;
     }
 }
@@ -561,9 +561,13 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
         '*'
     };
     
-    char *specialSelectors[2] = {
+    char *specialSelectors[5] = {
         "@media",
         "@charset",
+        //todo(jarrett): implement these
+        "@import",
+        "@keyframes",
+        "@font-face",
     };
     
     for(char *charData = (char *)file.contents; *charData && !error; ++charData)
@@ -606,7 +610,7 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                 }
                 if(endIndex) --endIndex;
                 state->commentDataLen = endIndex;
-                AppendString(charData, state->commentDataLen, state->commentData);
+                AppendString(charData, state->commentDataLen, state->commentData, 0);
                 charData += endIndex;
             }
         }
@@ -674,6 +678,12 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                             charData += IndexOf(charData, ';') + 1;
                             leaveThisPlace = true;
                             break;
+                        }
+                        else if(StringExactMatch("@import", len, specialSelector, len))
+                        {
+                            //todo(jarrett): import can use media query text
+                            charData += IndexOf(charData, ' ') + 1;
+                            int eol = IndexOf(charData, ';');
                         }
                     }
                 }
@@ -796,7 +806,7 @@ void ProcessData(app_platform *platform, file_contents file, error_details *erro
     {
         InitMem(&state->workingMem, &platform->permanentMemoryPool, sizeof(app_state));
         
-        state->blocks = PushArray(&state->workingMem, selector_block, 256);
+        //state->blocks = PushArray(&state->workingMem, selector_block, 256);
         
         state->variables = PushArray(&state->workingMem, key_value_pair, 256);
         
@@ -823,30 +833,30 @@ void ProcessData(app_platform *platform, file_contents file, error_details *erro
         char *outFileName = PushArray(&state->workingMem, char, (u32)fileExtIndex + extensionLen + 1);
         WriteString(file.fileName, fileExtIndex, outFileName);
         
-        AppendString(outFileExt, extensionLen, outFileName + fileExtIndex);
+        AppendString(outFileExt, extensionLen, outFileName + fileExtIndex, 0);
         
         //out?
-        output out = {};
+        output out;
         out.data = PushArray(&state->workingMem, char, (u32)(1.5f * file.size));
         out.dataLen = 0;
         out.flags |= Output_NewLine;
         
         if(state->encoding)
         {
-            AppendString("@charset \"", 10, &out);
+            AppendStringOutput("@charset \"", 10, &out);
             
-            AppendString(state->encoding, state->encodingLen, &out);
+            AppendStringOutput(state->encoding, state->encodingLen, &out);
             
-            AppendString("\";\n\n", 4, &out);
+            AppendStringOutput("\";\n\n", 4, &out);
         }
         
         if(state->variableCount)
         {
-            AppendString(":root {\n", 8, &out);
+            AppendStringOutput(":root {\n", 8, &out);
             
             OutVariables(state->variables, state->variableCount, &out);
             
-            AppendString("}\n\n", 3, &out);
+            AppendStringOutput("}\n\n", 3, &out);
         }
         
         for(u32 masterBlockIndex = 0; masterBlockIndex < state->blockCount; ++masterBlockIndex)

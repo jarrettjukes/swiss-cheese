@@ -3,11 +3,11 @@
 
 #include "main.h"
 #include "swiss.h"
-#include "swiss.cpp"
+#include "swiss.c"
 
 internal file_contents Win32ReadEntireFile(char *fileName)
 {
-    file_contents result = {};
+    file_contents result = {0};
     
     HANDLE fileHandle = CreateFileA(fileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
     
@@ -30,7 +30,7 @@ internal file_contents Win32ReadEntireFile(char *fileName)
                 else
                 {
                     VirtualFree(result.contents, 0, MEM_RELEASE);
-                    result = {};
+                    memset(&result, 0, sizeof(file_contents));
                 }
             }
         }
@@ -125,7 +125,7 @@ int main(int argC, char **args)
     
     if(fileName)
     {
-        app_platform platform = {};
+        app_platform platform = {0};
         platform.writeFile = Win32WriteEntireFile;
         platform.readFile = Win32ReadEntireFile;
         platform.beginTimer = beginTimer;
@@ -138,14 +138,14 @@ int main(int argC, char **args)
         platform.temporaryMemoryPool.memorySize = Megabytes(250);
         platform.temporaryMemoryPool.memory = (u8 *)VirtualAlloc(0, platform.temporaryMemoryPool.memorySize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
         
-        file_contents file = {};
+        file_contents file = {0};
         FILETIME lastWriteTime = {0};
         error_details *error = 0;
         
         LARGE_INTEGER workCounter = Win32GetWallclock();
         do
         {
-            WIN32_FILE_ATTRIBUTE_DATA fileAttributes = {};
+            WIN32_FILE_ATTRIBUTE_DATA fileAttributes = {0};
             GetFileAttributesExA(fileName, GetFileExInfoStandard, &fileAttributes);
             b32 inputFileChanged = CompareFileTime(&fileAttributes.ftLastWriteTime, &lastWriteTime) > 0;
             if(inputFileChanged || always || !file.contents)

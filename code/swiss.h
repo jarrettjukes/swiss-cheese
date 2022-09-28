@@ -11,31 +11,31 @@ enum output_flags
     Output_Indent = (1 << 1),
 };
 
-struct output
+typedef struct output
 {
     char *data;
     int dataLen;
     u8 flags;
-};
+} output;
 
-void AppendString(char *src, int srcLen, output *out);
+//void AppendString(char *src, int srcLen, output *out);
 
-struct member_name
+typedef struct member_name
 {
     char *name;
     int len;
     
     char combinationChar;
-};
+} member_name;
 
-struct function
+typedef struct function
 {
     char name[256];
     int nameLength;
     
     char codeBlock[256];
     int codeBlockLength;
-};
+} function;
 
 enum variable_flags
 {
@@ -50,7 +50,7 @@ enum key_value_pair_flags
     KVP_Comment = (1 << 3),
 };
 
-struct key_value_pair
+typedef struct key_value_pair
 {
     char *name;
     int nameLength;
@@ -59,7 +59,7 @@ struct key_value_pair
     int valueLength;
     
     u8 flags;
-};
+} key_value_pair;
 
 enum block_flags
 {
@@ -69,7 +69,7 @@ enum block_flags
     Block_completed = (1 << 3),
 };
 
-struct selector_block
+typedef struct selector_block
 {
     member_name *names;
     int nameCount;
@@ -89,13 +89,13 @@ struct selector_block
     u8 flags;
     
     //u32 parentCount;
-    selector_block *parent;
+    struct selector_block *parent;
     
-    selector_block *children;
+    struct selector_block *children;
     u32 childCount;
-};
+} selector_block;
 
-struct app_state
+typedef struct app_state
 {
     mem_struct workingMem;
     
@@ -113,12 +113,12 @@ struct app_state
     char *commentData;
     int commentDataLen;
     
-    selector_block *blocks;
+    selector_block blocks[256];
     u32 blockCount;
     u32 totalBlockCount;
     
     
     b32 isInitialized;
-};
+} app_state;
 
 #endif //SWISS_H
