@@ -28,6 +28,7 @@ typedef struct member_name
     char combinationChar;
 } member_name;
 
+#if 0
 typedef struct function
 {
     char name[256];
@@ -36,7 +37,7 @@ typedef struct function
     char codeBlock[256];
     int codeBlockLength;
 } function;
-
+#endif
 enum variable_flags
 {
     Variable_NoReplace = (1 << 0),
@@ -101,10 +102,10 @@ typedef struct app_state
     
     char *encoding;
     int encodingLen;
-    
+#if 0
     function userDefinedFunctions[16];
     u32 functionCount;
-    
+#endif
     u32 linesOfCode; //idk if we want this at all?
     
     key_value_pair *variables;
