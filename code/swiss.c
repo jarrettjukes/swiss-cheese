@@ -161,14 +161,13 @@ internal selector_block *NewBlock(app_state *state, selector_block *blocks, u32 
     return block;
 }
 
-internal void OutVariables(key_value_pair *variables, u32 variableCount, output *out)
+internal void OutVariableDeclaration(key_value_pair *variables, u32 variableCount, output *out)
 {
     for(u32 variableIndex = 0; variableIndex < variableCount; ++variableIndex)
     {
         key_value_pair *variable = variables + variableIndex;
-        //if(IsFlagSet(variable->flags, Variable_NoReplace)) continue;
-        if(!IsFlagSet(variable->flags, KVP_Variable)) continue;
-        if(IsFlagSet(variable->flags, KVP_VariableNoReplace)) continue;
+        
+        if(*variable->name != '$') continue;
         if(IsFlagSet(out->flags, Output_Indent))
         {
             AppendStringOutput("\t", 1, out);
@@ -190,12 +189,13 @@ internal void OutCode(app_state *state, selector_block *block, output *out)
 {
     AppendStringOutput("{\n", 2, out);
     
-    OutVariables(block->keys, block->keyCount, out);
+    OutVariableDeclaration(block->keys, block->keyCount, out);
     
     for(u32 opIndex = 0; opIndex < block->keyCount; ++opIndex)
     {
         key_value_pair *line = block->keys + opIndex;
-        if(!IsFlagSet(line->flags, KVP_Line)) continue;
+        
+        if(*line->name == '$') continue;
         if(IsFlagSet(out->flags, Output_Indent))
         {
             AppendStringOutput("\t", 1, out);
@@ -218,8 +218,8 @@ internal void OutCode(app_state *state, selector_block *block, output *out)
                 for(u32 keyIndex = 0; keyIndex < varBlock->keyCount; ++keyIndex)
                 {
                     key_value_pair *key = varBlock->keys + keyIndex;
-                    if(!IsFlagSet(key->flags, KVP_Variable)) continue;
                     
+                    if(*key->name != '$') continue;
                     b32 stringMatch = StringExactMatch(line->value, line->valueLength, key->name, key->nameLength);
                     if(stringMatch)
                     {
@@ -337,7 +337,8 @@ internal void OutWrapper(member_name *name, key_value_pair *variables, int varia
         for(int varIndex = 0; varIndex < variableCount; ++varIndex)
         {
             key_value_pair *variable = variables + varIndex;
-            if(!IsFlagSet(variable->flags, KVP_Variable)) continue;
+            
+            if(*variable->name != '$') continue;
             b32 stringMatch = StringExactMatch(name->name + varChar, name->len - varChar, variable->name, variable->nameLength);
             
             if(stringMatch)
@@ -369,6 +370,7 @@ internal void OutNames(selector_block *block, output *out)
 
 internal void OutBlock(app_state *state, selector_block *block, output *out)
 {
+    Assert(IsFlagSet(block->flags, Block_completed));
     member_name *name = block->names + 0;
     
     if(IsFlagSet(block->flags, Block_wrapper))
@@ -383,7 +385,7 @@ internal void OutBlock(app_state *state, selector_block *block, output *out)
             for(u32 variableIndex = 0; variableIndex < parent->keyCount; ++variableIndex)
             {
                 key_value_pair *variable = parent->keys + variableIndex;
-                if(!IsFlagSet(variable->flags, KVP_Variable)) continue;
+                if(*variable->name != '$') continue;
                 b32 stringMatch = StringExactMatch(variable->name, variable->nameLength, name->name, name->len);
                 if(stringMatch)
                 {
@@ -603,21 +605,6 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                 charData += endIndex;
             }
         }
-        else if(*charData == '$' || *charData == '-')
-        {
-            //char next = *(charData + 1);
-            //if(*charData == '-' && next != '-') continue;
-            //if(*charData == '$') charData++;
-            //if(*charData == '-' && next == '-') charData += 2;
-            //hmmm
-            key_value_pair *variables = 0;
-            u32 *variableCount = 0;
-            GetVariableSources((workingBlock ? 1 : 0), state, workingBlock, &variables, &variableCount);
-            
-            GetCode(state, charData, variables, variableCount, KVP_Variable);
-            
-            toNext = true;
-        }
         else if(*charData == '}')
         {
             SetFlag(workingBlock, Block_completed);
@@ -631,7 +618,7 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
             workingBlock = workingBlock->parent;
             toNext = true;
         }
-        else if (isSelector)
+        else if (isSelector || *charData == '$')
         {
             int openBracketIndex = IndexOf(charData, '{');
             int valueSeparator = IndexOf(charData, ':');
@@ -646,8 +633,6 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                     
                     if(StringExactMatch(charData, len, specialSelector, len))
                     {
-                        int eol = IndexOf(charData, ';');
-                        
                         if(StringExactMatch("@media", len, specialSelector, len))
                         {
                             hasMediaQuery = true;
@@ -667,7 +652,7 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                             state->encoding = PushArray(&state->arena, char, state->encodingLen + 1);
                             WriteString(charData, state->encodingLen, state->encoding);
                             
-                            charData += eol + 1;
+                            charData += IndexOf(charData, ';');
                             leaveThisPlace = true;
                             break;
                         }
@@ -748,13 +733,17 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                     newName->len--;
                     WriteString(charData, newName->len, newName->name);
                     charData += openBracketIndex;
+                    
+                    
+                    //note(jarrett): this chunk is technically for media queries, but this code also exists in OutWrapper :thinking-emoji:
+#if 0
                     int varIndex = IndexOf(newName->name, '$');
                     if(varIndex >= 0)
                     {
                         key_value_pair *variables = 0;
-                        u32 *variableCount = 0;
+                        u32 variableCount = 0;
                         
-                        GetVariableSources((workingBlock->parent ? 1 : 0), state, workingBlock, &variables, &variableCount);
+                        GetVariableSources((workingBlock->parent ? 1 : 0), state, workingBlock, &variables, variableCount);
                         
                         for(u32 variableIndex = 0; variableIndex < *variableCount; ++variableIndex)
                         {
@@ -767,14 +756,16 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                             }
                         }
                     }
+#endif
                 }
             }
             else
             {
-                if(!IsFlagSet(workingBlock->flags, Block_completed))
-                {
-                    GetCode(state, charData, workingBlock->keys, &workingBlock->keyCount, KVP_Line);
-                }
+                key_value_pair *variables = 0;
+                u32 *variableCount = 0;
+                GetVariableSources((workingBlock ? 1 : 0), state, workingBlock, &variables, &variableCount);
+                
+                GetCode(state, charData, variables, variableCount, KVP_Line);
                 toNext = true;
             }
         }
@@ -801,7 +792,7 @@ void ProcessData(app_platform *platform, file_contents file, error_details *erro
         state->variables = PushArray(&state->arena, key_value_pair, 256);
         
         state->commentData = PushArray(&state->arena, char, 256);
-        state->commentDataLen = 256;
+        state->commentDataLen = 0;
         
         state->isInitialized = true;
     }
@@ -828,7 +819,6 @@ void ProcessData(app_platform *platform, file_contents file, error_details *erro
         //out?
         output out = {0};
         out.data = PushArray(&state->arena, char, (u32)(1.5f * file.size));
-        out.dataLen = 0;
         out.flags |= Output_NewLine;
         
         if(state->encoding)
@@ -844,7 +834,7 @@ void ProcessData(app_platform *platform, file_contents file, error_details *erro
         {
             AppendStringOutput(":root {\n", 8, &out);
             
-            OutVariables(state->variables, state->variableCount, &out);
+            OutVariableDeclaration(state->variables, state->variableCount, &out);
             
             AppendStringOutput("}\n\n", 3, &out);
         }

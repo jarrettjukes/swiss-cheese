@@ -171,7 +171,7 @@ internal void WriteString(char *src, int srcLen, char *dest)
     *(dest + srcLen) = '\0';
 }
 
-
+#if 0
 inline void *memset(void *pointer, int bytes, size_t size)
 {
     char *data = (char *)pointer;
@@ -182,5 +182,5 @@ inline void *memset(void *pointer, int bytes, size_t size)
     
     return pointer;
 }
-
+#endif
 #endif //PLATFORM_H
