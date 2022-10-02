@@ -772,11 +772,11 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
     }
 }
 
-void InitMem(memory_arena *mem, memory_pool *pool, mem_index size)
+void InitMem(memory_arena *arena, memory_pool *pool, mem_index size)
 {
-    mem->size = pool->memorySize - size;
-    mem->used += size;
-    mem->base = pool->memory + size;
+    arena->size = pool->memorySize - size;
+    arena->used += size;
+    arena->base = pool->memory + size;
 }
 
 void ProcessData(app_platform *platform, file_contents file, error_details *error)
