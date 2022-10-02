@@ -269,20 +269,6 @@ internal void OutCode(app_state *state, selector_block *block, output *out)
     }
 }
 
-inline void GetVariableSources(b32 expr, app_state *state, selector_block *workingBlock, key_value_pair **variables, u32 **variableCount)
-{
-    if(!expr)
-    {
-        *variables = state->variables;
-        *variableCount = &state->variableCount;
-    }
-    else
-    {
-        *variables = workingBlock->keys;
-        *variableCount = &workingBlock->keyCount;
-    }
-}
-
 internal key_value_pair GetCode(app_state *state, char *c, u8 flags)
 {
     key_value_pair code = {0};
@@ -771,12 +757,17 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
             }
             else
             {
-                key_value_pair *variables = 0;
-                u32 *variableCount = 0;
-                GetVariableSources((workingBlock ? 1 : 0), state, workingBlock, &variables, &variableCount);
-                
                 key_value_pair code = GetCode(state, charData, KVP_Line);
-                *(variables + (*variableCount)++) = code;
+                if(workingBlock)
+                {
+                    *(workingBlock->keys + workingBlock->keyCount++) = code;
+                }
+                else
+                {
+                    *(state->variables + state->variableCount++) = code;
+                }
+                
+                
                 charData += code.nameLength + code.valueLength + 3; //' ' + ';' + ':' == 3 chars
                 
                 toNext = true;
