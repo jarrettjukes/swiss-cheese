@@ -570,10 +570,18 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
         column++;
         if(toNext)
         {
-            while(*charData++ != '\n');
+            while(IsWhiteSpace(*charData)) 
+            {
+                if(*charData == '\n')
+                {
+                    state->linesOfCode++;
+                    column = 0;
+                }
+                charData++;
+            }
             
-            state->linesOfCode++;
-            column = 0;
+            //state->linesOfCode++;
+            //column = 0;
             toNext = false;
         }
         
