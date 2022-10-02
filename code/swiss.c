@@ -283,36 +283,38 @@ inline void GetVariableSources(b32 expr, app_state *state, selector_block *worki
     }
 }
 
-internal void GetCode(app_state *state, char *c, key_value_pair *lines, u32 *lineCount, u8 flags)
+internal key_value_pair GetCode(app_state *state, char *c, u8 flags)
 {
-    key_value_pair *code = (lines + (*lineCount)++);
+    key_value_pair code = {0};
     int sep = IndexOf(c, ':');
-    code->nameLength = sep;
-    code->name = PushArray(&state->arena, char, code->nameLength + 1);
+    code.nameLength = sep;
+    code.name = PushArray(&state->arena, char, code.nameLength + 1);
     
-    WriteString(c, code->nameLength, code->name);
-    c += code->nameLength + 1;
+    WriteString(c, code.nameLength, code.name);
+    c += code.nameLength + 1;
     
     if(*c == ' ')
     {
         c++;
     }
     
-    code->valueLength = IndexOf(c, ';');
-    code->value = PushArray(&state->arena, char, code->valueLength + 1);
-    for(int i = 0; i < code->valueLength; ++i)
+    code.valueLength = IndexOf(c, ';');
+    code.value = PushArray(&state->arena, char, code.valueLength + 1);
+    for(int i = 0; i < code.valueLength; ++i)
     {
         if(*c == '"')
         {
             c++;
-            code->valueLength--;
+            code.valueLength--;
             i--;
             continue;
         }
-        code->value[i] = *c++;
+        code.value[i] = *c++;
     }
     
-    code->flags = flags;
+    code.flags = flags;
+    
+    return code;
 }
 
 #if 0
@@ -773,7 +775,10 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                 u32 *variableCount = 0;
                 GetVariableSources((workingBlock ? 1 : 0), state, workingBlock, &variables, &variableCount);
                 
-                GetCode(state, charData, variables, variableCount, KVP_Line);
+                key_value_pair code = GetCode(state, charData, KVP_Line);
+                *(variables + (*variableCount)++) = code;
+                charData += code.nameLength + code.valueLength + 3; //' ' + ';' + ':' == 3 chars
+                
                 toNext = true;
             }
         }
