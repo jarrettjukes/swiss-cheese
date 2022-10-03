@@ -313,29 +313,38 @@ internal void Error(error_details *error, char *desc, u32 code = 0)
 }
 #endif
 
-internal void OutWrapper(member_name *name, key_value_pair *variables, int variableCount, output *out)
+internal void OutWrapper(member_name *name, selector_block *block, output *out)
 {
     int varChar = IndexOf(name->name, '$');
     
     int nameLen = varChar > 0 ? varChar : name->len;
     AppendStringOutput(name->name, nameLen, out);
     
-    if(varChar > 0)
+    char *workingName = name->name + nameLen;
+    while(varChar >= 0)
     {
-        for(int varIndex = 0; varIndex < variableCount; ++varIndex)
+        selector_block *parent = block;
+        while(parent)
         {
-            key_value_pair *variable = variables + varIndex;
-            
-            if(*variable->name != '$') continue;
-            b32 stringMatch = StringExactMatch(name->name + varChar, name->len - varChar, variable->name, variable->nameLength);
-            
-            if(stringMatch)
+            for(u32 varIndex = 0; varIndex < parent->keyCount; ++varIndex)
             {
-                AppendStringOutput(variable->value, variable->valueLength, out);
+                key_value_pair *variable = parent->keys + varIndex;
+                
+                if(*variable->name != '$') continue;
+                b32 stringMatch = StringExactMatch(workingName, variable->nameLength, variable->name, variable->nameLength);
+                
+                if(stringMatch)
+                {
+                    AppendStringOutput(variable->value, variable->valueLength, out);
+                    break;
+                }
             }
+            
+            parent = parent->parent;
         }
+        varChar = IndexOf(workingName, '$');
+        workingName += varChar;
     }
-    
     AppendStringOutput(" {", 2, out);
     
     out->flags |= Output_Indent;
@@ -363,37 +372,7 @@ internal void OutBlock(app_state *state, selector_block *block, output *out)
     
     if(IsFlagSet(block->flags, Block_wrapper))
     {
-        int varCharIndex = IndexOf(name->name, '$');
-        selector_block *parent = block;
-        key_value_pair *variables = 0;
-        int variableCount = 0;
-        //MULTIPLE VARIABLES????/?/?/
-        while(parent && varCharIndex > 0)
-        {
-            for(u32 variableIndex = 0; variableIndex < parent->keyCount; ++variableIndex)
-            {
-                key_value_pair *variable = parent->keys + variableIndex;
-                if(*variable->name != '$') continue;
-                b32 stringMatch = StringExactMatch(variable->name, variable->nameLength, name->name, name->len);
-                if(stringMatch)
-                {
-                    variables = parent->keys;
-                    variableCount = parent->keyCount;
-                    //int newChar = IndexOf(name->name + varCharIndex + 1, '$');
-                    varCharIndex = 0;
-                    break;
-                }
-            }
-            parent = parent->parent;
-        }
-        
-        if(!variables && !variableCount)
-        {
-            variables = state->variables;
-            variableCount = state->variableCount;
-        }
-        //AppendString("\n", 1, out->data + (*out->dataLen), out->dataLen);
-        OutWrapper(name, variables, variableCount, out);
+        OutWrapper(name, block, out);
         AppendStringOutput("\n", 1, out);
     }
     b32 hasLines = false;
