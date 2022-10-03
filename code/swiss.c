@@ -271,36 +271,36 @@ internal void OutCode(app_state *state, selector_block *block, output *out)
 
 internal key_value_pair GetCode(app_state *state, char *c, u8 flags)
 {
-    key_value_pair code = {0};
-    int sep = IndexOf(c, ':');
-    code.nameLength = sep;
-    code.name = PushArray(&state->arena, char, code.nameLength + 1);
+    key_value_pair result = {0};
     
-    WriteString(c, code.nameLength, code.name);
-    c += code.nameLength + 1;
+    result.nameLength = IndexOf(c, ':');
+    result.name = PushArray(&state->arena, char, result.nameLength + 1);
+    result.flags = flags;
+    
+    WriteString(c, result.nameLength, result.name);
+    c += result.nameLength + 1;
     
     if(*c == ' ')
     {
         c++;
     }
     
-    code.valueLength = IndexOf(c, ';');
-    code.value = PushArray(&state->arena, char, code.valueLength + 1);
-    for(int i = 0; i < code.valueLength; ++i)
+    result.valueLength = IndexOf(c, ';');
+    if(IndexOf(c, '"') >= 0)
     {
-        if(*c == '"')
-        {
-            c++;
-            code.valueLength--;
-            i--;
-            continue;
-        }
-        code.value[i] = *c++;
+        c++;
+        result.valueLength--;
     }
     
-    code.flags = flags;
+    if(IndexOf(c, '"') >= 0)
+    {
+        result.valueLength--;
+    }
     
-    return code;
+    result.value = PushArray(&state->arena, char, result.valueLength + 1);
+    WriteString(c, result.valueLength, result.value);
+    
+    return result;
 }
 
 #if 0
