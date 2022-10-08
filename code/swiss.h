@@ -37,12 +37,12 @@ typedef struct function
     char codeBlock[256];
     int codeBlockLength;
 } function;
-#endif
+
 enum variable_flags
 {
     Variable_NoReplace = (1 << 0),
 };
-
+#endif
 enum key_value_pair_flags
 {
     KVP_VariableNoReplace = (1 << 0),
