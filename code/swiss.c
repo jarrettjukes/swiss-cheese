@@ -313,7 +313,27 @@ internal void Error(error_details *error, char *desc, u32 code = 0)
 }
 #endif
 
-internal void OutWrapper(member_name *name, selector_block *block, output *out)
+internal char *FindKeyStr(key_value_pair *keys, u32 keyCount, char *targetStr)
+{
+    for(u32 varIndex = 0; varIndex < keyCount; ++varIndex)
+    {
+        key_value_pair *variable = keys + varIndex;
+        
+        if(*variable->name != '$') continue;
+        b32 stringMatch = StringExactMatch(targetStr, variable->nameLength, variable->name, variable->nameLength);
+        
+        if(stringMatch)
+        {
+            return variable->value;
+            //AppendStringOutput(variable->value, variable->valueLength, out);
+            //break;
+        }
+    }
+    
+    return 0;
+}
+
+internal void OutWrapper(app_state *state, member_name *name, selector_block *block, output *out)
 {
     int varChar = IndexOf(name->name, '$');
     
@@ -326,23 +346,20 @@ internal void OutWrapper(member_name *name, selector_block *block, output *out)
         selector_block *parent = block;
         while(parent)
         {
-            for(u32 varIndex = 0; varIndex < parent->keyCount; ++varIndex)
+            char *variableValue = FindKeyStr(parent->keys, parent->keyCount, workingName);
+            if(variableValue)
             {
-                key_value_pair *variable = parent->keys + varIndex;
-                
-                if(*variable->name != '$') continue;
-                b32 stringMatch = StringExactMatch(workingName, variable->nameLength, variable->name, variable->nameLength);
-                
-                if(stringMatch)
-                {
-                    AppendStringOutput(variable->value, variable->valueLength, out);
-                    break;
-                }
+                AppendStringOutput(variableValue, StringLength(variableValue), out);
             }
-            
             parent = parent->parent;
+            
+            if(!parent && !variableValue)
+            {
+                variableValue = FindKeyStr(state->variables, state->variableCount, workingName);
+                AppendStringOutput(variableValue, StringLength(variableValue), out);
+            }
         }
-        varChar = IndexOf(workingName, '$');
+        varChar = IndexOf(workingName + 1, '$');
         workingName += varChar;
     }
     AppendStringOutput(" {", 2, out);
@@ -372,7 +389,7 @@ internal void OutBlock(app_state *state, selector_block *block, output *out)
     
     if(IsFlagSet(block->flags, Block_wrapper))
     {
-        OutWrapper(name, block, out);
+        OutWrapper(state, name, block, out);
         AppendStringOutput("\n", 1, out);
     }
     b32 hasLines = false;
