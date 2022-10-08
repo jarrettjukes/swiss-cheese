@@ -515,7 +515,8 @@ internal void OutBlock(app_state *state, selector_block *block, output *out)
         if(IsFlagSet(out->flags, Output_NewLine))
         {
             out->dataLen--;
-            out->flags &= ~Output_NewLine;
+            //out->flags &= ~Output_NewLine;
+            out->flags ^= Output_NewLine;
         }
         AppendStringOutput("}\n", 2, out);
         out->flags &= ~Output_Indent;
