@@ -44,11 +44,6 @@ typedef struct function
     char codeBlock[256];
     int codeBlockLength;
 } function;
-
-enum variable_flags
-{
-    Variable_NoReplace = (1 << 0),
-};
 #endif
 enum key_value_pair_flags
 {
@@ -81,12 +76,6 @@ typedef struct selector_block
 {
     member_name *names;
     int nameCount;
-    
-    //key_value_pair *lines;
-    //u32 lineCount;
-    
-    //key_value_pair *variables;
-    //u32 variableCount;
     
     key_value_pair *keys;
     u32 keyCount;
@@ -124,7 +113,6 @@ typedef struct app_state
     selector_block blocks[256];
     u32 blockCount;
     u32 totalBlockCount;
-    
     
     b32 isInitialized;
 } app_state;

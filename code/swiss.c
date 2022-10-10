@@ -147,8 +147,6 @@ internal selector_block *NewBlock(app_state *state, selector_block *blocks, u32 
     memset(block, 0, sizeof(selector_block));
     
     block->names = PushArray(&state->arena, member_name, 16);
-    //block->lines = PushArray(&state->arena, key_value_pair, 64);
-    //block->variables = PushArray(&state->arena, key_value_pair, 64);
     
     block->keys = PushArray(&state->arena, key_value_pair, 128);
     
@@ -328,8 +326,6 @@ internal char *FindKeyStr(key_value_pair *keys, u32 keyCount, char *targetStr)
         if(stringMatch)
         {
             return variable->value;
-            //AppendStringOutput(variable->value, variable->valueLength, out);
-            //break;
         }
     }
     
@@ -409,7 +405,6 @@ internal void OutBlock(app_state *state, selector_block *block, output *out)
     
     if(hasLines)
     {
-        //AppendString("\n", 1, out->data + (*out->dataLen), out->dataLen);
         if(IsFlagSet(block->flags, Block_prepend))
         {
             AppendStringOutput(name->name, name->len, out);
@@ -568,8 +563,6 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                 charData++;
             }
             
-            //state->linesOfCode++;
-            //column = 0;
             toNext = false;
         }
         
@@ -729,30 +722,6 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                     newName->len--;
                     WriteString(charData, newName->len, newName->name);
                     charData += openBracketIndex;
-                    
-                    
-                    //note(jarrett): this chunk is technically for media queries, but this code also exists in OutWrapper :thinking-emoji:
-#if 0
-                    int varIndex = IndexOf(newName->name, CHARACTER_VARIABLE);
-                    if(varIndex >= 0)
-                    {
-                        key_value_pair *variables = 0;
-                        u32 variableCount = 0;
-                        
-                        GetVariableSources((workingBlock->parent ? 1 : 0), state, workingBlock, &variables, variableCount);
-                        
-                        for(u32 variableIndex = 0; variableIndex < *variableCount; ++variableIndex)
-                        {
-                            key_value_pair *variable = variables + variableIndex;
-                            b32 stringMatch = StringExactMatch(newName->name + varIndex, newName->len - varIndex, variable->name, variable->nameLength);
-                            if(stringMatch)
-                            {
-                                variable->flags |= Variable_NoReplace;
-                                //variable->flags |= name_replace;
-                            }
-                        }
-                    }
-#endif
                 }
             }
             else
@@ -766,7 +735,6 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                 {
                     *(state->variables + state->variableCount++) = code;
                 }
-                
                 
                 charData += code.nameLength + code.valueLength + 3; //' ' + ';' + ':' == 3 chars
                 
@@ -790,8 +758,6 @@ void ProcessData(app_platform *platform, file_contents file, error_details *erro
     if(!state->isInitialized)
     {
         InitMem(&state->arena, &platform->permanentMemoryPool, sizeof(app_state));
-        
-        //state->blocks = PushArray(&state->arena, selector_block, 256);
         
         state->variables = PushArray(&state->arena, key_value_pair, 256);
         
@@ -848,7 +814,6 @@ void ProcessData(app_platform *platform, file_contents file, error_details *erro
             selector_block *block = state->blocks + masterBlockIndex;
             
             OutBlock(state, block, &out);
-            //AppendString("\n", 1, outData + (outDataLen), &outDataLen);
         }
         
         msElapsed = ToMS(platform->outTimerAndDiscard(platform));
