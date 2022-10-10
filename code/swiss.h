@@ -45,7 +45,7 @@ enum variable_flags
 #endif
 enum key_value_pair_flags
 {
-    KVP_VariableNoReplace = (1 << 0),
+    KVP_VariableReplace = (1 << 0),
     KVP_Variable = (1 << 1),
     KVP_Line = (1 << 2),
     KVP_Comment = (1 << 3),

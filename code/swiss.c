@@ -168,6 +168,7 @@ internal void OutVariableDeclaration(key_value_pair *variables, u32 variableCoun
         key_value_pair *variable = variables + variableIndex;
         
         if(*variable->name != '$') continue;
+        if(IsFlagSet(variable->flags, KVP_VariableReplace)) continue;
         if(IsFlagSet(out->flags, Output_Indent))
         {
             AppendStringOutput("\t", 1, out);
@@ -286,13 +287,15 @@ internal key_value_pair GetCode(app_state *state, char *c, u8 flags)
     }
     
     result.valueLength = IndexOf(c, ';');
-    if(IndexOf(c, '"') >= 0)
+    int quoteIndex = IndexOf(c, '"');
+    if(quoteIndex >= 0 && quoteIndex < result.valueLength)
     {
+        result.flags |= KVP_VariableReplace;
         c++;
         result.valueLength--;
     }
-    
-    if(IndexOf(c, '"') >= 0)
+    quoteIndex = IndexOf(c, '"');
+    if(quoteIndex >= 0 && quoteIndex < result.valueLength)
     {
         result.valueLength--;
     }
