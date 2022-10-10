@@ -9,7 +9,7 @@ inline void AppendStringOutput(char *src, int srcLen, output *out)
 #if 0
 inline void Discard()
 {
-    int endOfFunction = IndexOf(charData, ';');
+    int endOfFunction = IndexOf(charData, CHARACTER_END_VALUE_CAPTURE);
 #if 1
     
     charData++;
@@ -50,9 +50,9 @@ inline void Discard()
     charData++;
     
     //code block
-    Assert(*charData++ == ':');
+    Assert(*charData++ == CHARACTER_START_VALUE_CAPTURE);
     
-    newF->codeBlockLength = IndexOf(charData, ';');
+    newF->codeBlockLength = IndexOf(charData, CHARACTER_END_VALUE_CAPTURE);
     
     for(int codeIndex = 0; codeIndex < newF->codeBlockLength; ++codeIndex)
     {
@@ -103,7 +103,7 @@ inline void Discard()
 }
 #endif
 
-global char appenders[3] = {'&', '[', ':'};
+global char appenders[3] = {CHARACTER_APPEND_SELECTOR, '[', CHARACTER_START_VALUE_CAPTURE};
 global char combinators[8] = {
     ',',
     '>',
@@ -167,7 +167,7 @@ internal void OutVariableDeclaration(key_value_pair *variables, u32 variableCoun
     {
         key_value_pair *variable = variables + variableIndex;
         
-        if(*variable->name != '$') continue;
+        if(*variable->name != CHARACTER_VARIABLE) continue;
         if(IsFlagSet(variable->flags, KVP_VariableReplace)) continue;
         if(IsFlagSet(out->flags, Output_Indent))
         {
@@ -196,7 +196,7 @@ internal void OutCode(app_state *state, selector_block *block, output *out)
     {
         key_value_pair *line = block->keys + opIndex;
         
-        if(*line->name == '$') continue;
+        if(*line->name == CHARACTER_VARIABLE) continue;
         if(IsFlagSet(out->flags, Output_Indent))
         {
             AppendStringOutput("\t", 1, out);
@@ -208,7 +208,7 @@ internal void OutCode(app_state *state, selector_block *block, output *out)
         
         AppendStringOutput(": ", 2, out);
         
-        int varStartIndex = IndexOf(line->value, '$');
+        int varStartIndex = IndexOf(line->value, CHARACTER_VARIABLE);
         if(varStartIndex >= 0)
         {
             b32 findVariable = true;
@@ -220,7 +220,7 @@ internal void OutCode(app_state *state, selector_block *block, output *out)
                 {
                     key_value_pair *key = varBlock->keys + keyIndex;
                     
-                    if(*key->name != '$') continue;
+                    if(*key->name != CHARACTER_VARIABLE) continue;
                     b32 stringMatch = StringExactMatch(line->value, line->valueLength, key->name, key->nameLength);
                     if(stringMatch)
                     {
@@ -274,7 +274,7 @@ internal key_value_pair GetCode(app_state *state, char *c, u8 flags)
 {
     key_value_pair result = {0};
     
-    result.nameLength = IndexOf(c, ':');
+    result.nameLength = IndexOf(c, CHARACTER_START_VALUE_CAPTURE);
     result.name = PushArray(&state->arena, char, result.nameLength + 1);
     result.flags = flags;
     
@@ -286,7 +286,7 @@ internal key_value_pair GetCode(app_state *state, char *c, u8 flags)
         c++;
     }
     
-    result.valueLength = IndexOf(c, ';');
+    result.valueLength = IndexOf(c, CHARACTER_END_VALUE_CAPTURE);
     int quoteIndex = IndexOf(c, '"');
     if(quoteIndex >= 0 && quoteIndex < result.valueLength)
     {
@@ -322,7 +322,7 @@ internal char *FindKeyStr(key_value_pair *keys, u32 keyCount, char *targetStr)
     {
         key_value_pair *variable = keys + varIndex;
         
-        if(*variable->name != '$') continue;
+        if(*variable->name != CHARACTER_VARIABLE) continue;
         b32 stringMatch = StringExactMatch(targetStr, variable->nameLength, variable->name, variable->nameLength);
         
         if(stringMatch)
@@ -338,7 +338,7 @@ internal char *FindKeyStr(key_value_pair *keys, u32 keyCount, char *targetStr)
 
 internal void OutWrapper(app_state *state, member_name *name, selector_block *block, output *out)
 {
-    int varChar = IndexOf(name->name, '$');
+    int varChar = IndexOf(name->name, CHARACTER_VARIABLE);
     
     int nameLen = varChar > 0 ? varChar : name->len;
     AppendStringOutput(name->name, nameLen, out);
@@ -362,7 +362,7 @@ internal void OutWrapper(app_state *state, member_name *name, selector_block *bl
                 AppendStringOutput(variableValue, StringLength(variableValue), out);
             }
         }
-        varChar = IndexOf(workingName + 1, '$');
+        varChar = IndexOf(workingName + 1, CHARACTER_VARIABLE);
         workingName += varChar;
     }
     AppendStringOutput(" {", 2, out);
@@ -535,12 +535,12 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
         '>',
         '#',
         '.',
-        '&',
+        CHARACTER_APPEND_SELECTOR,
         '@',
         '~',
         '+',
         '[',
-        ':',
+        CHARACTER_START_VALUE_CAPTURE,
         '*'
     };
     
@@ -601,7 +601,7 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                 charData += endIndex;
             }
         }
-        else if(*charData == '}')
+        else if(*charData == CHARACTER_END_BLOCK)
         {
             SetFlag(workingBlock, Block_completed);
 #if 0
@@ -614,10 +614,10 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
             workingBlock = workingBlock->parent;
             toNext = true;
         }
-        else if (isSelector || *charData == '$')
+        else if (isSelector || *charData == CHARACTER_VARIABLE)
         {
-            int openBracketIndex = IndexOf(charData, '{');
-            int valueSeparator = IndexOf(charData, ':');
+            int openBracketIndex = IndexOf(charData, CHARACTER_START_BLOCK);
+            int valueSeparator = IndexOf(charData, CHARACTER_START_VALUE_CAPTURE);
             if((openBracketIndex <= valueSeparator && openBracketIndex >= 0) || Contains(appenders, *charData) || *charData == '@')
             {
                 b32 hasMediaQuery = false;
@@ -642,13 +642,13 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                                 //todo(jarrett): throw an error
                                 __debugbreak();
                             }
-                            charData += IndexOf(charData, '\"') + 1;
+                            charData += IndexOf(charData, '"') + 1;
                             
-                            state->encodingLen = IndexOf(charData, '\"');
+                            state->encodingLen = IndexOf(charData, '"');
                             state->encoding = PushArray(&state->arena, char, state->encodingLen + 1);
                             WriteString(charData, state->encodingLen, state->encoding);
                             
-                            charData += IndexOf(charData, ';');
+                            charData += IndexOf(charData, CHARACTER_END_VALUE_CAPTURE);
                             leaveThisPlace = true;
                             break;
                         }
@@ -684,7 +684,7 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                     }
                     else
                     {
-                        int prependCharIndex = IndexOf(charData, '&');
+                        int prependCharIndex = IndexOf(charData, CHARACTER_APPEND_SELECTOR);
                         
                         if(openBracketIndex > prependCharIndex)
                         {
@@ -733,7 +733,7 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                     
                     //note(jarrett): this chunk is technically for media queries, but this code also exists in OutWrapper :thinking-emoji:
 #if 0
-                    int varIndex = IndexOf(newName->name, '$');
+                    int varIndex = IndexOf(newName->name, CHARACTER_VARIABLE);
                     if(varIndex >= 0)
                     {
                         key_value_pair *variables = 0;

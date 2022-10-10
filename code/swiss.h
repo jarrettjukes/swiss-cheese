@@ -5,6 +5,13 @@
 
 #define MAX_BLOCK_CHILD_COUNT 16
 
+#define CHARACTER_VARIABLE    '$'
+#define CHARACTER_START_BLOCK '{'
+#define CHARACTER_END_BLOCK   '}'
+#define CHARACTER_START_VALUE_CAPTURE ':'
+#define CHARACTER_END_VALUE_CAPTURE ';'
+#define CHARACTER_APPEND_SELECTOR '&'
+
 enum output_flags
 {
     Output_NewLine = (1 << 0),
