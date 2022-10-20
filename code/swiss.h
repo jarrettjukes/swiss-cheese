@@ -3,7 +3,8 @@
 #ifndef SWISS_H
 #define SWISS_H
 
-#define MAX_BLOCK_CHILD_COUNT 16
+#define MAX_BLOCK_COUNT 4096
+#define MAX_BLOCK_CHILD_COUNT 256
 
 #define CHARACTER_VARIABLE    '$'
 #define CHARACTER_START_BLOCK '{'
@@ -45,6 +46,7 @@ typedef struct function
     int codeBlockLength;
 } function;
 #endif
+
 enum key_value_pair_flags
 {
     KVP_VariableReplace = (1 << 0),
@@ -55,6 +57,7 @@ enum key_value_pair_flags
 
 typedef struct key_value_pair
 {
+    //int blockIndex;
     char *name;
     int nameLength;
     
@@ -74,22 +77,23 @@ enum block_flags
 
 typedef struct selector_block
 {
+    int blockIndex;
+    int parentBlockIndex;
+    int blockBlockIndex;
     member_name *names;
     int nameCount;
     
-    key_value_pair *keys;
-    u32 keyCount;
-    
-    char *commentData;
-    int commentDataLen;
-    
     u8 flags;
     
-    //u32 parentCount;
-    struct selector_block *parent;
+    //key_value_pair keys[16];
+    int keys[16];
+    u32 keyCount;
     
-    struct selector_block *children;
-    u32 childCount;
+    //u32 parentCount;
+    //struct selector_block *parent;
+    
+    //struct selector_block *children;
+    //u32 childCount;
 } selector_block;
 
 typedef struct app_state
@@ -104,13 +108,10 @@ typedef struct app_state
 #endif
     u32 linesOfCode; //idk if we want this at all?
     
-    key_value_pair *variables;
+    key_value_pair variables[MAX_BLOCK_COUNT * 16];
     u32 variableCount;
     
-    char *commentData;
-    int commentDataLen;
-    
-    selector_block blocks[256];
+    selector_block blocks[MAX_BLOCK_COUNT];
     u32 blockCount;
     u32 totalBlockCount;
     

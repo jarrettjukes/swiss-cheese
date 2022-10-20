@@ -103,15 +103,6 @@ inline void Discard()
 }
 #endif
 
-global char appenders[3] = {CHARACTER_APPEND_SELECTOR, '[', CHARACTER_START_VALUE_CAPTURE};
-global char combinators[8] = {
-    ',',
-    '>',
-    '~',
-    '+',
-    ' ',
-};
-
 inline b32 IsWhiteSpace(char str)
 {
     b32 result = (str == ' ' ||
@@ -140,31 +131,36 @@ inline member_name *NewName(app_state *state, selector_block *block, int len)
     return result;
 }
 
-internal selector_block *NewBlock(app_state *state, selector_block *blocks, u32 *blockCount, selector_block *parent)
+internal selector_block *NewBlock(app_state *state, int parentIndex)
 {
-    selector_block *block = (blocks + (*blockCount)++);
+    int blockIndex = state->blockCount++;
+    selector_block *block = state->blocks + blockIndex;
     state->totalBlockCount++;
     memset(block, 0, sizeof(selector_block));
     
+    block->blockIndex = blockIndex;
+    block->parentBlockIndex = parentIndex;
     block->names = PushArray(&state->arena, member_name, 16);
     
-    block->keys = PushArray(&state->arena, key_value_pair, 128);
-    
+    //block->keys = PushArray(&state->arena, key_value_pair, 128);
+#if 0
     block->children = PushArray(&state->arena, selector_block, MAX_BLOCK_CHILD_COUNT);
     if(parent)
     {
         block->parent = parent;
     }
-    
+#endif
     return block;
 }
 
-internal void OutVariableDeclaration(key_value_pair *variables, u32 variableCount, output *out)
+internal void OutVariableDeclaration(app_state *state, selector_block *block, output *out)
 {
-    for(u32 variableIndex = 0; variableIndex < variableCount; ++variableIndex)
+    for(u32 variableIndex = 0; variableIndex < block->keyCount; ++variableIndex)
     {
-        key_value_pair *variable = variables + variableIndex;
+        //int hashSlot = (16 + variableIndex) * blockIndex;// & (ArrayCount() - 1);
+        key_value_pair *variable = state->variables + block->keys[variableIndex];
         
+        //if(variable->blockIndex != blockIndex) continue;
         if(*variable->name != CHARACTER_VARIABLE) continue;
         if(IsFlagSet(variable->flags, KVP_VariableReplace)) continue;
         if(IsFlagSet(out->flags, Output_Indent))
@@ -184,16 +180,40 @@ internal void OutVariableDeclaration(key_value_pair *variables, u32 variableCoun
     }
 }
 
+
+internal char *FindKeyStr(key_value_pair *keys, u32 keyCount, char *targetStr, int sourceBlockIndex)
+{
+    for(u32 varIndex = 0; varIndex < keyCount; ++varIndex)
+    {
+        key_value_pair *variable = keys + varIndex + (sourceBlockIndex * 16);
+        
+        if(!variable) continue;
+        //if(variable->blockIndex > sourceBlockIndex) break;
+        if(*variable->name != CHARACTER_VARIABLE) continue;
+        
+        b32 stringMatch = StringExactMatch(targetStr, variable->nameLength, variable->name, variable->nameLength);
+        
+        if(stringMatch)
+        {
+            return variable->value;
+        }
+    }
+    
+    return 0;
+}
+
 internal void OutCode(app_state *state, selector_block *block, output *out)
 {
     AppendStringOutput("{\n", 2, out);
     
-    OutVariableDeclaration(block->keys, block->keyCount, out);
+    OutVariableDeclaration(state, block, out);
     
     for(u32 opIndex = 0; opIndex < block->keyCount; ++opIndex)
     {
-        key_value_pair *line = block->keys + opIndex;
+        //int hashSlot = (16 + opIndex) * block->blockIndex;
+        key_value_pair *line = state->variables + block->keys[opIndex];
         
+        //if(line->blockIndex != block->blockIndex) continue;
         if(*line->name == CHARACTER_VARIABLE) continue;
         if(IsFlagSet(out->flags, Output_Indent))
         {
@@ -209,37 +229,7 @@ internal void OutCode(app_state *state, selector_block *block, output *out)
         int varStartIndex = IndexOf(line->value, CHARACTER_VARIABLE);
         if(varStartIndex >= 0)
         {
-            b32 findVariable = true;
-            selector_block *varBlock = block;
-            key_value_pair *varKey = 0;
-            do
-            {
-                for(u32 keyIndex = 0; keyIndex < varBlock->keyCount; ++keyIndex)
-                {
-                    key_value_pair *key = varBlock->keys + keyIndex;
-                    
-                    if(*key->name != CHARACTER_VARIABLE) continue;
-                    b32 stringMatch = StringExactMatch(line->value, line->valueLength, key->name, key->nameLength);
-                    if(stringMatch)
-                    {
-                        varKey = key;
-                        findVariable = false;
-                        break;
-                    }
-                }
-                
-                varBlock = varBlock->parent;
-            } while(findVariable && varBlock);
-            
-            char *keyVal = 0;
-            if(varKey)
-            {
-                keyVal = varKey->name;
-            }
-            else
-            {
-                keyVal = line->value;
-            }
+            char *keyVal = (state->variables + block->keys[opIndex])->value;
             
             AppendString("var(--", 6, (out->data + out->dataLen), &out->dataLen);
             
@@ -314,24 +304,6 @@ internal void Error(error_details *error, char *desc, u32 code = 0)
 }
 #endif
 
-internal char *FindKeyStr(key_value_pair *keys, u32 keyCount, char *targetStr)
-{
-    for(u32 varIndex = 0; varIndex < keyCount; ++varIndex)
-    {
-        key_value_pair *variable = keys + varIndex;
-        
-        if(*variable->name != CHARACTER_VARIABLE) continue;
-        b32 stringMatch = StringExactMatch(targetStr, variable->nameLength, variable->name, variable->nameLength);
-        
-        if(stringMatch)
-        {
-            return variable->value;
-        }
-    }
-    
-    return 0;
-}
-
 internal void OutWrapper(app_state *state, member_name *name, selector_block *block, output *out)
 {
     int varChar = IndexOf(name->name, CHARACTER_VARIABLE);
@@ -342,22 +314,18 @@ internal void OutWrapper(app_state *state, member_name *name, selector_block *bl
     char *workingName = name->name + nameLen;
     while(varChar >= 0)
     {
-        selector_block *parent = block;
-        while(parent)
+        char *variableValue = FindKeyStr(state->variables, state->variableCount, workingName, block->parentBlockIndex);
+        
+        if(!variableValue)
         {
-            char *variableValue = FindKeyStr(parent->keys, parent->keyCount, workingName);
-            if(variableValue)
-            {
-                AppendStringOutput(variableValue, StringLength(variableValue), out);
-            }
-            parent = parent->parent;
-            
-            if(!parent && !variableValue)
-            {
-                variableValue = FindKeyStr(state->variables, state->variableCount, workingName);
-                AppendStringOutput(variableValue, StringLength(variableValue), out);
-            }
+            variableValue = FindKeyStr(state->variables, state->variableCount, workingName, block->blockIndex);
         }
+        
+        if(variableValue)
+        {
+            AppendStringOutput(variableValue, StringLength(variableValue), out);
+        }
+        
         varChar = IndexOf(workingName + 1, CHARACTER_VARIABLE);
         workingName += varChar;
     }
@@ -388,22 +356,14 @@ internal void OutBlock(app_state *state, selector_block *block, output *out)
     
     if(IsFlagSet(block->flags, Block_wrapper))
     {
+        //todo(jarrett): media queries are broken (99% sure)
         OutWrapper(state, name, block, out);
         AppendStringOutput("\n", 1, out);
+        return;
     }
-    b32 hasLines = false;
-    
-    for(u32 keyIndex = 0; keyIndex < block->keyCount; ++keyIndex)
-    {
-        key_value_pair *key = block->keys + keyIndex;
-        if(IsFlagSet(key->flags, KVP_Line))
-        {
-            hasLines = true;
-            break;
-        }
-    }
-    
-    if(hasLines)
+    b32 hasLines = block->keyCount > 0;
+    selector_block *blockParent = state->blocks + block->parentBlockIndex;
+    if((hasLines && !IsFlagSet(block->flags, Block_prepend)) || (!hasLines && blockParent->keyCount > 0 && IsFlagSet(blockParent->flags, Block_prepend)))
     {
         if(IsFlagSet(block->flags, Block_prepend))
         {
@@ -412,101 +372,74 @@ internal void OutBlock(app_state *state, selector_block *block, output *out)
             *(out->data + out->dataLen++) = ' ';
         }
         
-        u32 parentCount = 0;
-        {
-            selector_block *parent = block->parent;
-            while(parent)
-            {
-                if(IsFlagSet(parent->flags, Block_wrapper)) break;
-                parentCount++;
-                parent = parent->parent;
-            }
-        }
-        
         if(IsFlagSet(out->flags, Output_Indent))
         {
             *(out->data + out->dataLen++) = '\t';
         }
         
-        if(parentCount)
+        //b32 outName = false;
+        if(block->parentBlockIndex > 1)
         {
-            selector_block *parentList = PushArray(&state->arena, selector_block, parentCount);
+            for(u32 blockIndex = block->blockBlockIndex; blockIndex < state->blockCount; ++blockIndex)
             {
-                selector_block *blockParent = block->parent;
+                if(blockIndex > (u32)block->blockIndex) continue;
+                selector_block *parent = state->blocks + blockIndex;
                 
-                for(u32 parentIndex = parentCount; parentIndex > 0; --parentIndex)
-                {
-                    if(blockParent)
-                    {
-                        if(IsFlagSet(blockParent->flags, Block_wrapper)) break;
-                        if(IsFlagSet(blockParent->flags, Block_prepend))
-                        {
-                            *(parentList + parentIndex-- - 1) = *blockParent->parent;
-                            *(parentList + parentIndex - 1) = *blockParent;
-                            blockParent = blockParent->parent;
-                        }
-                        else
-                        {
-                            *(parentList + parentIndex - 1) = *blockParent;
-                        }
-                        blockParent = blockParent->parent;
-                    }
-                }
-            }
-            
-            for(u32 parentIndex = 0; parentIndex < parentCount; ++parentIndex)
-            {
-                selector_block *parent = parentList + parentIndex;
-                selector_block *nextParent = parentList + parentIndex + 1;
+                if(parent->blockIndex == block->blockIndex) break;
+                if(parent->parentBlockIndex == block->parentBlockIndex) continue;
+                if(IsFlagSet(parent->flags, Block_wrapper) && parent->parentBlockIndex == 1) continue;
                 
                 for(int parentNameIndex = 0; parentNameIndex < parent->nameCount; ++parentNameIndex)
                 {
                     member_name *parentName = parent->names + parentNameIndex;
                     
                     AppendStringOutput(parentName->name, parentName->len, out);
-                    
+                    //outName = true;
                     if(!IsWhiteSpace(parentName->combinationChar) && parentName->combinationChar)
                     {
                         if(!IsFlagSet(block->flags, Block_append)) 
                         {
                             *(out->data + out->dataLen++) = ' ';
                         }
+                        
                         OutNames(block, out);
+                        
                         *(out->data + out->dataLen++) = parentName->combinationChar;
                         *(out->data + out->dataLen++) = ' ';
                     }
                     
-                    if(nextParent->nameCount && !IsFlagSet(nextParent->flags, Block_append)) 
+                    if(parent->nameCount && !IsFlagSet(parent->flags, Block_append) && parent->blockIndex != block->parentBlockIndex && !IsFlagSet(blockParent->flags, Block_append)) 
                     {
                         *(out->data + out->dataLen++) = ' ';
                     }
                 }
             }
-            
-            PopArray(&state->arena, parentList, selector_block, parentCount);
-            
-            if(!IsFlagSet(block->flags, Block_append))
-            {
-                *(out->data + out->dataLen++) = ' ';
-            }
         }
         
-        if(!IsFlagSet(block->flags, Block_prepend))
+        if(!IsFlagSet(block->flags, Block_append) && block->parentBlockIndex != 1 && !IsFlagSet(blockParent->flags, Block_wrapper))
+        {
+            *(out->data + out->dataLen++) = ' ';
+        }
+        
+        if(!IsFlagSet(block->flags, Block_prepend))// && !outName)
         {
             OutNames(block, out);
         }
         
         *(out->data + out->dataLen++) = ' ';
         
-        OutCode(state, block, out);
+        if(hasLines)
+        {
+            OutCode(state, block, out);
+        }
+        else if(!hasLines && blockParent->keyCount > 0 && block->parentBlockIndex > 1 && IsFlagSet(blockParent->flags, Block_prepend))
+        {
+            OutCode(state, blockParent, out);
+        }
     }
     
-    for(u32 childIndex = 0; childIndex < block->childCount; ++childIndex)
-    {
-        OutBlock(state, block->children + childIndex, out);
-    }
-    
-    if(IsFlagSet(block->flags, Block_wrapper))
+    selector_block *nextBlock = block + 1;
+    if(nextBlock->blockBlockIndex != block->blockBlockIndex && block->blockIndex != nextBlock->blockBlockIndex && IsFlagSet(out->flags, Output_Indent))
     {
         //warning(jarrett): I have observed stack corruption issues with this code (state get mangled), but deleting binaries seemed to have fixed it?
         //might be a problem later
@@ -523,7 +456,9 @@ internal void OutBlock(app_state *state, selector_block *block, output *out)
 
 internal void ParseData(app_state *state, file_contents file, error_details *error)
 {
-    selector_block *workingBlock = 0;
+    state->blockCount++;
+    selector_block *workingBlock = NewBlock(state, 0);
+    u32 blockBlockIndex = 1;
     b32 toNext = false;
     int column = 0;
     char selectors[10] = {
@@ -537,6 +472,15 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
         '[',
         CHARACTER_START_VALUE_CAPTURE,
         '*'
+    };
+    
+    char appenders[3] = {CHARACTER_APPEND_SELECTOR, '[', CHARACTER_START_VALUE_CAPTURE};
+    char combinators[8] = {
+        ',',
+        '>',
+        '~',
+        '+',
+        ' ',
     };
     
     char *specialSelectors[5] = {
@@ -589,14 +533,19 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                     endIndex = IndexOf(charData++, '\n');
                 }
                 if(endIndex) --endIndex;
-                state->commentDataLen = endIndex;
-                AppendString(charData, state->commentDataLen, state->commentData, 0);
+                //int hashSlot = (state->blockCount * workingBlock->blockIndex) & (ArrayCount(state->variables) - 1);
+                //key_value_pair *key = (state->variables + hashSlot);
+                
+                //key->valueLength = endIndex;
+                //key->flags |= KVP_Comment;
+                //AppendString(charData, key->valueLength, key->value, 0);
                 charData += endIndex;
             }
         }
         else if(*charData == CHARACTER_END_BLOCK)
         {
             SetFlag(workingBlock, Block_completed);
+            
 #if 0
             if(!workingBlock->parent)
             {
@@ -604,7 +553,10 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                 break;
             }
 #endif
-            workingBlock = workingBlock->parent;
+            if(workingBlock->parentBlockIndex == 1 && blockBlockIndex > 1) blockBlockIndex = workingBlock->parentBlockIndex;
+            workingBlock = (state->blocks + workingBlock->parentBlockIndex);
+            //workingBlock = workingBlock->parent;
+            
             toNext = true;
         }
         else if (isSelector || *charData == CHARACTER_VARIABLE)
@@ -653,14 +605,13 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                     }
                 }
                 if(leaveThisPlace) continue;
-                if(!workingBlock)
+                workingBlock = NewBlock(state, !IsFlagSet(workingBlock->flags, Block_completed) ? workingBlock->blockIndex : 0);
+                if(workingBlock->parentBlockIndex == 1) 
                 {
-                    workingBlock = NewBlock(state, state->blocks, &state->blockCount, 0);
+                    blockBlockIndex = workingBlock->blockIndex;
                 }
-                else
-                {
-                    workingBlock = NewBlock(state, workingBlock->children, &workingBlock->childCount, workingBlock);
-                }
+                workingBlock->blockBlockIndex = ((u32)workingBlock->blockIndex == blockBlockIndex) ? 1 : blockBlockIndex;
+                
                 
                 if(hasMediaQuery)
                 {
@@ -682,6 +633,7 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
                         if(openBracketIndex > prependCharIndex)
                         {
                             SetFlag(workingBlock, Block_prepend);
+                            
                             openBracketIndex -= (openBracketIndex - prependCharIndex);
                         }
                     }
@@ -727,19 +679,39 @@ internal void ParseData(app_state *state, file_contents file, error_details *err
             else
             {
                 key_value_pair code = GetCode(state, charData, KVP_Line);
-                if(workingBlock)
-                {
-                    *(workingBlock->keys + workingBlock->keyCount++) = code;
-                }
-                else
-                {
-                    *(state->variables + state->variableCount++) = code;
-                }
+                //collapse all of the blocks into a hash function? block index * id (global = 0, block chunks > 0)
+                
+                //16 is the amount of variables we want to store for each block atm
+                int hashSlot = ((16 + workingBlock->keyCount) * workingBlock->blockIndex) & (ArrayCount(state->variables) - 1);
+                //code.blockIndex = workingBlock->blockIndex;
+                *(state->variables + hashSlot) = code;
+                state->variableCount++;
+                workingBlock->keys[workingBlock->keyCount++] = hashSlot;
+                //workingBlock->keyCount++;
                 
                 charData += code.nameLength + code.valueLength + 3; //' ' + ';' + ':' == 3 chars
                 
                 toNext = true;
             }
+        }
+    }
+    
+    for(u32 blockIndex = 0; blockIndex < state->blockCount; ++blockIndex)
+    {
+        selector_block *block = state->blocks + blockIndex;
+        if(IsFlagSet(block->flags, Block_prepend) && block->parentBlockIndex != 1)
+        {
+            selector_block *prevBlock = (state->blocks + block->blockIndex - 1);
+            
+            selector_block temp = *prevBlock;
+            
+            *prevBlock = *block;
+            prevBlock->blockIndex--;
+            prevBlock->parentBlockIndex--;
+            
+            *(state->blocks + block->blockIndex) = temp;
+            block->blockIndex++;
+            block->parentBlockIndex++;
         }
     }
 }
@@ -759,11 +731,8 @@ void ProcessData(app_platform *platform, file_contents file, error_details *erro
     {
         InitMem(&state->arena, &platform->permanentMemoryPool, sizeof(app_state));
         
-        state->variables = PushArray(&state->arena, key_value_pair, 256);
-        
-        state->commentData = PushArray(&state->arena, char, 256);
-        state->commentDataLen = 0;
-        
+        //state->variables = PushArray(&state->arena, key_value_pair, 256);
+        //state->blockCount++;
         state->isInitialized = true;
     }
     
@@ -800,16 +769,18 @@ void ProcessData(app_platform *platform, file_contents file, error_details *erro
             AppendStringOutput("\";\n\n", 4, &out);
         }
         
-        if(state->variableCount)
         {
-            AppendStringOutput(":root {\n", 8, &out);
-            
-            OutVariableDeclaration(state->variables, state->variableCount, &out);
-            
-            AppendStringOutput("}\n\n", 3, &out);
+            selector_block *root = state->blocks + 1;
+            if(root->keyCount)
+            {
+                AppendStringOutput(":root {\n", 8, &out);
+                
+                OutVariableDeclaration(state, root, &out);
+                
+                AppendStringOutput("}\n\n", 3, &out);
+            }
         }
-        
-        for(u32 masterBlockIndex = 0; masterBlockIndex < state->blockCount; ++masterBlockIndex)
+        for(u32 masterBlockIndex = 2; masterBlockIndex < state->blockCount; ++masterBlockIndex)
         {
             selector_block *block = state->blocks + masterBlockIndex;
             
