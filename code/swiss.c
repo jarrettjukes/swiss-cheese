@@ -3,7 +3,7 @@
 
 inline void AppendStringOutput(char *src, int srcLen, output *out)
 {
-    AppendString(src, srcLen, (out->data + out->dataLen), &out->dataLen);
+    AppendString(src, out->data, &out->dataLen);
 }
 
 #if 0
@@ -231,11 +231,11 @@ internal void OutCode(app_state *state, selector_block *block, output *out)
         {
             char *keyVal = (state->variables + block->keys[opIndex])->value;
             
-            AppendString("var(--", 6, (out->data + out->dataLen), &out->dataLen);
+            AppendString("var(--", out->data, &out->dataLen);
             
-            AppendString(keyVal + 1, StringLength(keyVal) - 1, (out->data + out->dataLen), &out->dataLen);
+            AppendString(keyVal + 1, out->data, &out->dataLen);
             
-            AppendString(")", 1, (out->data + out->dataLen), &out->dataLen);
+            AppendString(")", out->data, &out->dataLen);
         }
         else
         {
@@ -753,7 +753,8 @@ void ProcessData(app_platform *platform, file_contents file, error_details *erro
         char *outFileName = PushArray(&state->arena, char, (u32)fileExtIndex + extensionLen + 1);
         WriteString(file.fileName, fileExtIndex, outFileName);
         
-        AppendString(outFileExt, extensionLen, outFileName + fileExtIndex, 0);
+        int len = fileExtIndex;
+        AppendString(outFileExt, outFileName, &len);
         
         //out?
         output out = {0};

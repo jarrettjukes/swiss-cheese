@@ -85,6 +85,7 @@ internal int IndexOf(char *str, char c)
     return result;
 }
 
+#if 0
 internal void AppendString(char *src, int srcLen, char *dest, int *destLen)
 {
     Assert(src && srcLen && dest);
@@ -93,6 +94,17 @@ internal void AppendString(char *src, int srcLen, char *dest, int *destLen)
     {
         *dest++ = *src++;
         if(destLen) (*destLen)++;
+    }
+}
+#endif
+internal void AppendString(char *src, char *dest, int *destLen)
+{
+    Assert(src && dest);
+    
+    for(char *s = src; *s; ++s)
+    {
+        *(dest + (*destLen)++) = *s;
+        //if(destLen) (*destLen)++;
     }
 }
 
