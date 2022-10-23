@@ -10,12 +10,6 @@ typedef struct file_contents
     void *contents;
 } file_contents;
 
-typedef struct memory_pool
-{
-    u8 *memory;
-    u32 memorySize;
-} memory_pool;
-
 struct app_platform;
 typedef file_contents read_entire_file(char *fileName);
 typedef void write_entire_file(char *fileName, char *data, int dataLen);

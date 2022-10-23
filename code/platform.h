@@ -32,12 +32,25 @@ typedef size_t mem_index;
 #define true 1
 #define false 0
 
+typedef struct memory_pool
+{
+    u8 *memory;
+    u32 memorySize;
+} memory_pool;
+
 typedef struct memory_arena
 {
     mem_index size;
     u8 *base;
     mem_index used;
 } memory_arena;
+
+void InitMem(memory_arena *arena, memory_pool *pool, mem_index size)
+{
+    arena->size = pool->memorySize - size;
+    arena->used += size;
+    arena->base = pool->memory + size;
+}
 
 #define PushStruct(memStruct, type) (type *)PushStruct_(memStruct, sizeof(type))
 #define PushArray(memStruct, type, size) (type *)PushStruct_(memStruct, sizeof(type) * size)
@@ -62,6 +75,7 @@ internal void PopStruct_(memory_arena *mem, void *p, size_t size)
     
     mem->used -= size;
 }
+
 
 inline int StringLength(char *str)
 {

@@ -118,4 +118,11 @@ typedef struct app_state
     b32 isInitialized;
 } app_state;
 
+
+inline b32 IsFlagSet(u8 flags, u8 flag)
+{
+    b32 result = flags & flag;
+    return result;
+}
+
 #endif //SWISS_H
