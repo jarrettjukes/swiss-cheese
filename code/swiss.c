@@ -736,9 +736,9 @@ void ProcessData(app_platform *platform, file_contents file, error_details *erro
         state->isInitialized = true;
     }
     
-    platform->beginTimer(platform);
+    platform->beginTimer(&platform->lastCounter);
     ParseData(state, file, error);
-    float msElapsed = ToMS(platform->outTimerAndDiscard(platform));
+    float msElapsed = ToMS(platform->outTimerAndDiscard(&platform->lastCounter, "ParseData"));
     
     if(!error)
     {
@@ -788,7 +788,7 @@ void ProcessData(app_platform *platform, file_contents file, error_details *erro
             OutBlock(state, block, &out);
         }
         
-        msElapsed = ToMS(platform->outTimerAndDiscard(platform));
+        msElapsed = ToMS(platform->outTimerAndDiscard(&platform->lastCounter, "CSS Output"));
         
         if(out.dataLen)
         {

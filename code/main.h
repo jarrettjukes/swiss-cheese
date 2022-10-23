@@ -19,8 +19,8 @@ typedef struct memory_pool
 struct app_platform;
 typedef file_contents read_entire_file(char *fileName);
 typedef void write_entire_file(char *fileName, char *data, int dataLen);
-typedef void begin_timer(struct app_platform *platform);
-typedef float out_timer_and_discard(struct app_platform *platform);
+typedef void begin_timer(LARGE_INTEGER *lastCounter);
+typedef float out_timer_and_discard(LARGE_INTEGER *lastCounter, char *label);
 typedef struct app_platform
 {
     memory_pool permanentMemoryPool;

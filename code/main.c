@@ -70,16 +70,17 @@ inline float Win32GetSecondsElapsed(LARGE_INTEGER start, LARGE_INTEGER end)
     return result;
 }
 
-internal void beginTimer(app_platform *platform)
+internal void beginTimer(LARGE_INTEGER *lastCounter)
 {
-    platform->lastCounter = Win32GetWallclock();
+    *lastCounter = Win32GetWallclock();
 }
 
-internal float outTimerAndDiscard(app_platform *platform)
+internal float outTimerAndDiscard(LARGE_INTEGER *lastCounter, char *label)
 {
     LARGE_INTEGER clock = Win32GetWallclock();
-    float result = Win32GetSecondsElapsed(platform->lastCounter, clock);
-    platform->lastCounter = clock;
+    float result = Win32GetSecondsElapsed(*lastCounter, clock);
+    *lastCounter = clock;
+    printf("%s: %.4f s, %.4f ms\n", label, result, ToMS(result));
     return result;
 }
 
